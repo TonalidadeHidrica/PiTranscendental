@@ -29,7 +29,7 @@ lemma polynomial_of_roots (roots : Multiset ℂ) :
     := by
   rw [
     Finset.sum_congr
-    (g := λ j ↦ (-1) ^ j * (Polynomial.C (roots.esymm j) * Polynomial.X ^ (roots.card - j)))
+    (g := fun j ↦ (-1) ^ j * (Polynomial.C (roots.esymm j) * Polynomial.X ^ (roots.card - j)))
     (by rfl) ?eq
   ]
   case eq =>
@@ -62,7 +62,7 @@ theorem Multiset.sum_coe' {M : Type*} [AddCommMonoid M] :
   ext; simp
 
 theorem MvPolynomial.X_sum_injective {R σ : Type*} [CommSemiring R] [Nontrivial R] [DecidableEq σ] :
-    Function.Injective (λ (x : Finset σ) => ∑ a ∈ x, X (R :=R) a) := by
+    Function.Injective (fun (x : Finset σ) => ∑ a ∈ x, X (R :=R) a) := by
   simp [Function.Injective]
   intro s t h
   rw [Finset.ext_iff]
@@ -90,7 +90,7 @@ lemma sublist_sum_eq_subsum_polys_eval
 lemma list_subsum_polys_as_multiset
     (R : Type*) [CommSemiring R] (n m : ℕ) :
       Multiset.ofList (list_subsum_polys R n m)
-        = (Finset.powersetCard m Finset.univ).val.map (λ x ↦ ∑ a ∈ x, MvPolynomial.X a) := by
+        = (Finset.powersetCard m Finset.univ).val.map (fun x ↦ ∑ a ∈ x, MvPolynomial.X a) := by
   unfold list_subsum_polys
   simp [List.ofFn_eq_map, ← List.map_sublistsLen]
   rw [← Multiset.map_coe, ← Multiset.sum_coe', Function.comp_assoc, ← Multiset.map_coe']
@@ -186,8 +186,9 @@ lemma list_subsum_polys_is_invariant
     · apply this
     · apply this
 
-lemma aeval_IsRat {σ : Type*} {p : MvPolynomial σ ℚ} {params : σ → ℂ} (hp : ∀ s : σ, (params s).IsRat) :
-    p.aeval params |>.IsRat := by
+lemma aeval_IsRat
+    {σ : Type*} {p : MvPolynomial σ ℚ} {params : σ → ℂ} (hp : ∀ s : σ, (params s).IsRat) :
+      p.aeval params |>.IsRat := by
   choose v hv using hp
   use MvPolynomial.aeval v p
   let ratToComplexAlg : ℚ →ₐ[ℚ] ℂ := Algebra.ofId ℚ ℂ
@@ -361,7 +362,7 @@ theorem polynomial_of_sums (p : ℤ[X]) (hp : p ≠ 0) :
   conv in Multiset.map _ =>
     rhs
     change θ_roots p
-  use (Multiset.range n).map (λ m ↦ Classical.choose (θ_exists p m)) |>.prod
+  use (Multiset.range n).map (fun m ↦ Classical.choose (θ_exists p m)) |>.prod
   rw [prod_roots]
   simp
   · conv in (fun _ => Polynomial.aroots _ _) =>
@@ -476,8 +477,8 @@ attribute [local fun_prop] Polynomial.continuous_aeval
 
 
 lemma deriv_ex_fx (hp : 0 < p) :
-    deriv (λ x ↦ Complex.exp (-x) * (@F h p).aeval x)
-      = (λ x ↦ -(Complex.exp (-x) * (@f h p).aeval x)) := by
+    deriv (fun x ↦ Complex.exp (-x) * (@F h p).aeval x)
+      = (fun x ↦ -(Complex.exp (-x) * (@f h p).aeval x)) := by
   ext x
   simp [F]
   rw [deriv_fun_mul ?a ?b, deriv_cexp ?c, deriv_fun_sum ?d]
@@ -489,7 +490,7 @@ lemma deriv_ex_fx (hp : 0 < p) :
   conv =>
     lhs; rhs; rhs; ext i; rhs
     rw [← Function.comp_apply (f :=Polynomial.derivative), ← Function.iterate_succ']
-  rw [← Finset.sum_image (f := λ i ↦ (Polynomial.derivative)^[i] f |>.aeval x) (g := Nat.succ) ?inj]
+  rw [← Finset.sum_image (f := fun i ↦ (Polynomial.derivative)^[i] f |>.aeval x) (g := Nat.succ) ?inj]
   case inj => 
     apply Set.injOn_of_injective
     exact Nat.succ_injective
@@ -565,12 +566,12 @@ lemma exp_sum_is_int : -(@βs h |>.map Complex.exp |>.sum) = (@k h : ℂ) := by
   simp [k]
   rw [neg_eq_iff_add_eq_zero]
   have := Multiset.sum_map_eq_nsmul_single
-    (m := (@βs' h).filter (· = 0)) (f := (λ x => Complex.exp x)) 0 ?cond
+    (m := (@βs' h).filter (· = 0)) (f := (fun x => Complex.exp x)) 0 ?cond
   case cond => intro i hi hs; simp [hi] at hs
   conv at this => rhs; simp
   rw [← this, ← Multiset.sum_add, ← Multiset.map_add, Multiset.add_comm]
   simp [βs, Multiset.filter_add_not, βs']
-  have : (λ x => Complex.exp x.sum) = Multiset.prod ∘ (Multiset.map Complex.exp) := by
+  have : (fun x => Complex.exp x.sum) = Multiset.prod ∘ (Multiset.map Complex.exp) := by
     ext x; simp
     exact Complex.exp_multiset_sum x
   rw [this, ← Multiset.map_map, Multiset.map_map_powerset, ← Multiset.prod_add_one]
@@ -582,10 +583,10 @@ lemma exp_sum_is_int : -(@βs h |>.map Complex.exp |>.sum) = (@k h : ℂ) := by
   rw [← Polynomial.mem_aroots] at hp
   grind
 
-noncomputable def lhs := ((@βs h).map (λ β ↦ (@F h p).aeval β)).sum + @k h * (@F h p).aeval 0
+noncomputable def lhs := ((@βs h).map (fun β ↦ (@F h p).aeval β)).sum + @k h * (@F h p).aeval 0
 noncomputable def rhs := 
   -((@βs h).map
-      (λ β ↦ β * ∫ (t : ℝ) in 0..1, Complex.exp ((1-t)*β) * (@f h p).aeval (t * β))
+      (fun β ↦ β * ∫ (t : ℝ) in 0..1, Complex.exp ((1-t)*β) * (@f h p).aeval (t * β))
   ).sum
 
 lemma equation_21 : ∀ᶠp in Filter.atTop, @lhs h p = @rhs h p := by
@@ -594,7 +595,7 @@ lemma equation_21 : ∀ᶠp in Filter.atTop, @lhs h p = @rhs h p := by
   intro p hp
 
   unfold lhs rhs
-  have := congr_arg (λ f ↦ ((@βs h).map f).sum) (funext (@equation_20 h p hp))
+  have := congr_arg (fun f ↦ ((@βs h).map f).sum) (funext (@equation_20 h p hp))
   simp at this
   rename_bvar i → β at this
   rw [← this, sub_eq_add_neg, Multiset.sum_map_mul_right]
@@ -917,11 +918,11 @@ lemma rhs_convergence_lemma (a b : ℝ) :
   conv => enter [1, n]; rw [mul_div_assoc]
   rw [show 0 = a * 0 from by simp]
   apply Filter.Tendsto.const_mul
-  apply Filter.Tendsto.comp (f := (· - 1)) (g := λ (n : ℕ) ↦ b^n / n.factorial)
+  apply Filter.Tendsto.comp (f := (· - 1)) (g := fun (n : ℕ) ↦ b^n / n.factorial)
   · apply FloorSemiring.tendsto_pow_div_factorial_atTop
   · apply Filter.tendsto_sub_atTop_nat
 
-lemma rhs_prop : Filter.Tendsto (λ p ↦ @rhs h p / (p-1).factorial) Filter.atTop (nhds 0) := by
+lemma rhs_prop : Filter.Tendsto (fun p ↦ @rhs h p / (p-1).factorial) Filter.atTop (nhds 0) := by
   simp [rhs, f]
   apply squeeze_zero_norm
   · intro p
@@ -976,7 +977,7 @@ lemma rhs_prop : Filter.Tendsto (λ p ↦ @rhs h p / (p-1).factorial) Filter.atT
       all_goals apply_rules [Continuous.mul, Continuous.pow] <;> try continuity
       all_goals (
         apply Continuous.comp (by continuity)
-        apply Continuous.comp (g := λ u ↦ (Polynomial.aeval u) θ)
+        apply Continuous.comp (g := fun u ↦ (Polynomial.aeval u) θ)
         all_goals continuity
       )
   conv => enter [1, p]; simp
