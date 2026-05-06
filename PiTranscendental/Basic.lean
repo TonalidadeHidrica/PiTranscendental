@@ -34,7 +34,8 @@ lemma polynomial_of_roots (roots : Multiset ℂ) :
   ]
   case eq =>
     intro x hx
-    simp
+    simp only [mul_eq_mul_left_iff, pow_eq_zero_iff', neg_eq_zero, one_ne_zero, ne_eq, false_and,
+      or_false]
     rw [Polynomial.C_mul_X_pow_eq_monomial]
   rw [← Multiset.prod_X_sub_X_eq_sum_esymm]
   exact Polynomial.roots_multiset_prod_X_sub_C roots
@@ -48,7 +49,7 @@ theorem List.map_sublistsLen {α β : Type*} {m : ℕ} {l : List α} {f : α →
     cases m with
     | zero => rfl
     | succ m =>
-      simp [List.map_cons, List.sublistsLen_succ_cons, List.map_append]
+      simp only [sublistsLen_succ_cons, map_append, map_map, map_cons]
       congr
       · exact ih
       · rw [← ih]
@@ -63,12 +64,13 @@ theorem Multiset.sum_coe' {M : Type*} [AddCommMonoid M] :
 
 theorem MvPolynomial.X_sum_injective {R σ : Type*} [CommSemiring R] [Nontrivial R] [DecidableEq σ] :
     Function.Injective (fun (x : Finset σ) => ∑ a ∈ x, X (R :=R) a) := by
-  simp [Function.Injective]
+  unfold Function.Injective
   intro s t h
   rw [Finset.ext_iff]
   contrapose! h
   obtain ⟨i, hi⟩ := h
-  wlog! hi : i ∈ s ∧ i ∉ t; grind
+  wlog! hi : i ∈ s ∧ i ∉ t
+  · grind
   apply ne_of_apply_ne (lcoeff _ (Finsupp.single i 1))
   simp [hi]
 
@@ -80,7 +82,7 @@ lemma sublist_sum_eq_subsum_polys_eval
     (l : List S) (m : ℕ) :
       (l.sublistsLen m).map List.sum = (list_subsum_polys R _ m).map (MvPolynomial.aeval l.get)
     := by
-  simp [list_subsum_polys]
+  simp only [list_subsum_polys, List.map_map]
   conv in (_ ∘ _) =>
     conv => 
       ext x; simp; rw [map_list_sum]
@@ -92,7 +94,7 @@ lemma list_subsum_polys_as_multiset
       Multiset.ofList (list_subsum_polys R n m)
         = (Finset.powersetCard m Finset.univ).val.map (fun x ↦ ∑ a ∈ x, MvPolynomial.X a) := by
   unfold list_subsum_polys
-  simp [List.ofFn_eq_map, ← List.map_sublistsLen]
+  simp only [List.ofFn_eq_map, ← List.map_sublistsLen, List.map_map]
   rw [← Multiset.map_coe, ← Multiset.sum_coe', Function.comp_assoc, ← Multiset.map_coe']
   rw [← Function.comp_assoc, ← Multiset.map_map, Multiset.map_coe, ← Multiset.powersetCard_coe]
   simp [← Finset.val_univ_fin, ← Finset.map_val_val_powersetCard]
@@ -131,7 +133,7 @@ lemma symmetric_composition {σ τ R : Type*} [CommSemiring R]
     (polys : σ → MvPolynomial τ R) (polys_symmetric : IsInvariantFamily polys)
     (q : MvPolynomial σ R) (hq : q.IsSymmetric) :
       q.aeval polys |>.IsSymmetric := by
-  simp [MvPolynomial.IsSymmetric]
+  simp only [MvPolynomial.IsSymmetric]
   intro e
   rw [← AlgHom.comp_apply]
   rw [show
@@ -172,10 +174,12 @@ lemma list_subsum_polys_is_invariant
     let s := {x | x ∈ list_subsum_polys R n m}
     have (perm_τ : Equiv.Perm (Fin n)) :
         Set.MapsTo (MvPolynomial.renameEquiv _ perm_τ).toEquiv s s := by
-      simp [s, Set.MapsTo]
-      simp [← Multiset.mem_coe]
+      simp only [s, Set.MapsTo, AlgEquiv.toEquiv_eq_coe, EquivLike.coe_coe]
+      simp only [← Multiset.mem_coe]
       rw [list_subsum_polys_as_multiset]
-      simp
+      simp only [Multiset.mem_map, Finset.mem_val, Finset.mem_powersetCard, Finset.subset_univ,
+        true_and, Set.mem_setOf_eq, MvPolynomial.renameEquiv_apply, forall_exists_index,
+        and_imp, forall_apply_eq_imp_iff₂, map_sum, MvPolynomial.rename_X]
       intro p hp
       use p.map perm_τ
       simp
@@ -194,7 +198,8 @@ lemma aeval_IsRat
   let ratToComplexAlg : ℚ →ₐ[ℚ] ℂ := Algebra.ofId ℚ ℂ
   have : MvPolynomial.aeval params = ratToComplexAlg.comp (MvPolynomial.aeval v) := by
     ext x
-    simp
+    simp only [MvPolynomial.aeval_X, AlgHom.coe_comp, MvPolynomial.aeval_eq_eval,
+      Function.comp_apply, MvPolynomial.eval_X, eq_ratCast]
     exact hv x
   rw [this]
   simp
@@ -208,21 +213,22 @@ lemma symmetric_aeval
     ⟨p, MvPolynomial.mem_symmetricSubalgebra p |>.mpr hp⟩
   rw [show p = f (f.symm p') from by simp; rfl]
   conv in f => unfold f
-  simp
+  simp only [MvPolynomial.esymmAlgEquiv_apply]
   rw [MvPolynomial.esymmAlgHom_apply, ← aeval_comp_aeval]
   apply aeval_IsRat
   intro s
   rw [MvPolynomial.aeval_esymm_eq_multiset_esymm]
   grind
 
-lemma list_esymm_rat (l : List ℂ) (m k : ℕ) (hparams : ∀ n : ℕ, (Multiset.ofList l).esymm n |>.IsRat) :
-    Complex.IsRat (Multiset.esymm (l.sublistsLen m |>.map List.sum) k) := by
+lemma list_esymm_rat
+    (l : List ℂ) (m k : ℕ) (hparams : ∀ n : ℕ, (Multiset.ofList l).esymm n |>.IsRat) :
+      Complex.IsRat (Multiset.esymm (l.sublistsLen m |>.map List.sum) k) := by
   rw [sublist_sum_eq_subsum_polys_eval ℚ, list_esymm ℚ, List.getElem_map', aeval_comp_aeval]
   apply symmetric_aeval
   · apply symmetric_composition
     · exact list_subsum_polys_is_invariant (R := ℚ) _ _ (by grind)
     · apply MvPolynomial.esymm_isSymmetric
-  · simp
+  · simp only [List.get_eq_getElem, Fin.univ_val_map, List.ofFn_getElem]
     assumption
 
 lemma Multiset.esymm_zero_if_gt
@@ -236,7 +242,7 @@ lemma Multiset.esymm_empty
 
 lemma aroots_esymm_israt {p : ℤ[X]} (k : ℕ) : ((p.aroots ℂ).esymm k).IsRat := by
   by_cases! hp : p = 0
-  · simp [hp, Multiset.esymm_empty, Complex.IsRat]
+  · simp only [hp, Polynomial.aroots_zero, Multiset.esymm_empty, Complex.IsRat]
     by_cases k = 0
     · use 1; simp; tauto
     · use 0; simp; tauto
@@ -252,8 +258,9 @@ lemma aroots_esymm_israt {p : ℤ[X]} (k : ℕ) : ((p.aroots ℂ).esymm k).IsRat
   rw [show k = n - (n - k) from by grind]
   have hesymm := Polynomial.coeff_eq_esymm_roots_of_card hroots (show n - k ≤ n from by grind)
   rw [← hn] at hesymm
-  have reducer {a b c d : ℂ} {ha : a.IsRat} {hb : b.IsRat} {hc : c.IsRat} {hb0 : b ≠ 0} {hc0 : c ≠ 0}
-      (h : a = b * c * d) : d.IsRat := by
+  have reducer
+      {a b c d : ℂ} {ha : a.IsRat} {hb : b.IsRat} {hc : c.IsRat} {hb0 : b ≠ 0} {hc0 : c ≠ 0}
+        (h : a = b * c * d) : d.IsRat := by
     obtain ⟨a', ha'⟩ := ha
     obtain ⟨b', hb'⟩ := hb
     obtain ⟨c', hc'⟩ := hc
@@ -262,10 +269,10 @@ lemma aroots_esymm_israt {p : ℤ[X]} (k : ℕ) : ((p.aroots ℂ).esymm k).IsRat
     grind
   apply reducer at hesymm
   · tauto
-  · simp [p', Complex.IsRat]; use p.coeff (n-k); simp
-  · simp [p', Complex.IsRat]
+  · simp only [p', algebraMap_int_eq, Polynomial.coeff_map, eq_intCast]; use p.coeff (n-k); simp
+  · simp only [p', algebraMap_int_eq]
     rw [Polynomial.leadingCoeff_map_of_leadingCoeff_ne_zero]
-    · simp; use p.leadingCoeff; simp
+    · simp only [eq_intCast]; use p.leadingCoeff; simp
     · simp; grind
   · use (-1) ^ (n - (n - k)); simp
   · rw [Polynomial.leadingCoeff_map_of_leadingCoeff_ne_zero]
@@ -275,8 +282,9 @@ lemma aroots_esymm_israt {p : ℤ[X]} (k : ℕ) : ((p.aroots ℂ).esymm k).IsRat
     grind
 
 -- This probably has better proof using ring theory
-lemma zpoly_aroots_exists_if_qpoly_exists (roots : Multiset ℂ) (hq : ∃ q : ℚ[X], q.aroots ℂ = roots) : 
-    ∃ p : ℤ[X], p.aroots ℂ = roots := by
+lemma zpoly_aroots_exists_if_qpoly_exists
+    (roots : Multiset ℂ) (hq : ∃ q : ℚ[X], q.aroots ℂ = roots) : 
+      ∃ p : ℤ[X], p.aroots ℂ = roots := by
   obtain ⟨q, hq⟩ := hq
   by_cases hq0 : q = 0
   · use 0
@@ -285,13 +293,15 @@ lemma zpoly_aroots_exists_if_qpoly_exists (roots : Multiset ℂ) (hq : ∃ q : �
   let p' := q * q.coeffs.lcm Rat.den
   have h_den : ∀ n, (p'.coeff n).den = 1 := by 
     intro n
-    simp [p']
+    simp only [p', Polynomial.coeff_mul_natCast]
     rw [← Rat.num_div_den (q.coeff n)]
-    have (a : ℤ) (b c : ℕ) : (a : ℚ) / (b : ℚ) * (c : ℚ) = (((a*c) : ℤ) : ℚ) / ((b : ℤ) : ℚ) := by simp; grind
+    have (a : ℤ) (b c : ℕ) : (a : ℚ) / (b : ℚ) * (c : ℚ) = (((a*c) : ℤ) : ℚ) / ((b : ℤ) : ℚ)
+      := by simp; grind
     rw [this, Rat.den_div_intCast_eq_one_iff _ _ (by simp)]
     apply Int.dvd_mul_of_dvd_right
     rw [Int.ofNat_dvd]
-    by_cases h0 : q.coeff n = 0; simp [h0]
+    by_cases h0 : q.coeff n = 0
+    · simp [h0]
     apply Finset.dvd_lcm 
     apply Polynomial.coeff_mem_coeffs h0
   let p : ℤ[X] := p'.sum (fun n c => Polynomial.monomial n c.num)
@@ -299,20 +309,22 @@ lemma zpoly_aroots_exists_if_qpoly_exists (roots : Multiset ℂ) (hq : ∃ q : �
     ext i
     simp [p]
     simp [Polynomial.coeff_monomial, Polynomial.sum_def]
-    by_cases h : p'.coeff i = 0; simp [h]
+    by_cases h : p'.coeff i = 0
+    · simp [h]
     simp [h]
     grind [Rat.coe_int_num_of_den_eq_one]
   use p
-  simp [Polynomial.aroots] at ⊢ hq
+  simp only [Polynomial.aroots, algebraMap_int_eq] at ⊢
+  simp [Polynomial.aroots] at hq
   rw [
     show Int.castRingHom ℂ = (algebraMap ℚ ℂ).comp (algebraMap ℤ ℚ)
     from by rw [← algebraMap_int_eq, ← Algebra.compHom_algebraMap_eq]; rfl,
     ← Polynomial.map_map,
     hqz,
   ]
-  simp [p']
+  simp only [p', Polynomial.map_mul, Polynomial.map_natCast]
   rw [Polynomial.roots_mul ?nz, ← Polynomial.C_eq_natCast, Polynomial.roots_C]
-  grind
+  · grind
   case nz =>
     apply mul_ne_zero
     · contrapose! hq0
@@ -324,19 +336,20 @@ noncomputable def θ_roots (p : ℤ[X]) (m : ℕ) : Multiset ℂ
   := p.aroots ℂ |>.powersetCard m |>.map Multiset.sum
 
 lemma θ_coeff_rat (p : ℤ[X]) (m k : ℕ) : θ_roots p m |>.esymm k |>.IsRat := by
-  simp [θ_roots]
+  simp only [θ_roots]
   rw [← Multiset.coe_toList (p.aroots ℂ), Multiset.powersetCard_coe]
-  simp
-  simp [show Multiset.sum ∘ Multiset.ofList = List.sum from by ext; rfl]
+  simp only [Multiset.map_coe, List.map_map]
+  rw [show Multiset.sum ∘ Multiset.ofList = List.sum from by ext; rfl]
   apply list_esymm_rat (p.aroots ℂ).toList m k
-  simp
+  simp only [Multiset.coe_toList]
   exact aroots_esymm_israt
 
 lemma θ_exists (p : ℤ[X]) (m : ℕ) : ∃ q : ℤ[X], q.aroots ℂ = θ_roots p m := by
   apply zpoly_aroots_exists_if_qpoly_exists
   use ∑ k ∈ Finset.range ((θ_roots p m).card + 1),
     (-1)^k * Polynomial.monomial ((θ_roots p m).card - k) (Classical.choose (θ_coeff_rat p m k))
-  simp [Polynomial.aroots, Polynomial.map_sum]
+  simp only [Polynomial.aroots, Polynomial.map_sum, Polynomial.map_mul, Polynomial.map_pow,
+    Polynomial.map_neg, Polynomial.map_one, Polynomial.map_monomial, eq_ratCast]
   conv =>
     lhs; rhs; rhs; ext k; rhs;
     rw [← Classical.choose_spec (θ_coeff_rat p m k)]
@@ -347,7 +360,7 @@ lemma prod_roots (s : Multiset ℤ[X]) (hs : ∀ p ∈ s, p ≠ 0) :
   induction s using Multiset.induction_on with
   | empty => simp
   | cons p s ih =>
-    simp
+    simp only [Multiset.prod_cons, Multiset.map_cons, Multiset.join_cons]
     rw [Polynomial.aroots_mul]
     · grind
     · rw [← Multiset.prod_cons]
@@ -358,46 +371,50 @@ theorem polynomial_of_sums (p : ℤ[X]) (hp : p ≠ 0) :
     ∃ q : ℤ[X], q.aroots ℂ = (p.aroots ℂ |>.powerset |>.map Multiset.sum) := by
   rw [← Multiset.bind_powerset_len]
   generalize hn : (p.aroots ℂ).card + 1 = n
-  simp [Multiset.bind, Multiset.map_join]
+  simp only [Multiset.bind, Multiset.map_join, Multiset.map_map, Function.comp_apply]
   conv in Multiset.map _ =>
     rhs
     change θ_roots p
   use (Multiset.range n).map (fun m ↦ Classical.choose (θ_exists p m)) |>.prod
   rw [prod_roots]
-  simp
-  · conv in (fun _ => Polynomial.aroots _ _) =>
+  · simp only [Multiset.map_map, Function.comp_apply]
+    conv in (fun _ => Polynomial.aroots _ _) =>
       ext m
       rw [Classical.choose_spec (θ_exists p m)]
   · intro p' hp'
     contrapose hp'
     rw [hp']
-    simp
+    simp only [Multiset.mem_map, Multiset.mem_range, not_exists, not_and]
     intro m hm
     contrapose hp
     have : (Classical.choose (θ_exists p m)).aroots ℂ = 0 := by simp [hp]
     rw [Classical.choose_spec (θ_exists p m)] at this
     contrapose! this
-    simp [θ_roots]
+    simp only [θ_roots, ne_eq]
     intro h
     apply congr_arg Multiset.card at h
-    simp at h
+    simp only [Multiset.card_map, Multiset.card_powersetCard, Multiset.card_zero] at h
     rw [Nat.choose_eq_zero_iff] at h
     grind
 
-lemma polynomial_without_zero (p : ℤ[X]) : ∃ q : ℤ[X], q.aroots ℂ = (p.aroots ℂ).filter (· ≠ 0) := by
+lemma polynomial_without_zero (p : ℤ[X]) :
+    ∃ q : ℤ[X], q.aroots ℂ = (p.aroots ℂ).filter (· ≠ 0) := by
   by_cases! hp : p = 0
   · use 0; simp [hp]
   have h := Polynomial.pow_mul_divByMonic_rootMultiplicity_eq p 0
-  simp at h
+  simp only [eq_intCast, Int.cast_zero, sub_zero] at h
   set xn := Polynomial.X (R :=ℤ) ^ p.rootMultiplicity 0
   use p /ₘ xn
   rw [← Multiset.add_right_inj (s := xn.aroots ℂ), ← Polynomial.aroots_mul (by grind), h]
   have : xn.aroots ℂ = (p.aroots ℂ).filter (· = 0) := by
-    simp [xn]
+    simp only [Polynomial.aroots_pow, Polynomial.aroots_X, xn]
     rw [← Polynomial.count_roots]
     ext x
-    by_cases! h : x ≠ 0; simp [h]
-    simp [h]
+    by_cases! h : x ≠ 0
+    · simp [h]
+    simp only [h, Polynomial.count_roots, Multiset.count_nsmul, Multiset.nodup_singleton,
+      Multiset.mem_singleton, Multiset.count_eq_one_of_mem, mul_one, Multiset.count_filter_of_pos,
+      algebraMap_int_eq]
     rw [show (0 : ℂ) = Int.castRingHom ℂ 0 from by simp]
     apply Polynomial.eq_rootMultiplicity_map Int.cast_injective
   rw [this, Multiset.filter_add_not]
@@ -437,9 +454,9 @@ noncomputable def k := (@βs' h).count 0
 
 
 lemma r_ge_one : 1 ≤ @r h := by
-  simp [r]
+  simp only [r]
   by_contra hn
-  simp at hn
+  simp only [not_le, Order.lt_one_iff] at hn
   rw [← IsAlgClosed.card_aroots_eq_natDegree (B := ℂ)] at hn
   obtain hθ := @θ_spec h
   obtain hp := @poly_witness_spec h
@@ -456,15 +473,15 @@ lemma r_ge_one : 1 ≤ @r h := by
   grind
 lemma θ_ne_zero : @θ h ≠ 0 := by
   have := @r_ge_one h
-  simp [r] at this
+  simp only [r] at this
   exact Polynomial.ne_zero_of_natDegree_gt this
 lemma k_pos : 0 < @k h := by
-  simp [k, βs', Multiset.count_pos]
+  simp only [k, βs', Multiset.count_pos, Multiset.mem_map, Multiset.mem_powerset]
   use ∅
   simp
 lemma cᵣ_ne_zero : @cᵣ h ≠ 0 := by
   have := @θ_spec h
-  simp [βs] at this
+  simp only [βs, ne_eq] at this
   have : 0 ∉ (@θ h).aroots ℂ := by rw [this]; simp
   rw [Polynomial.mem_aroots] at this
   simp [θ_ne_zero, ← Polynomial.coeff_zero_eq_aeval_zero'] at this
@@ -480,21 +497,22 @@ lemma deriv_ex_fx (hp : 0 < p) :
     deriv (fun x ↦ Complex.exp (-x) * (@F h p).aeval x)
       = (fun x ↦ -(Complex.exp (-x) * (@f h p).aeval x)) := by
   ext x
-  simp [F]
+  simp only [F, map_sum]
   rw [deriv_fun_mul ?a ?b, deriv_cexp ?c, deriv_fun_sum ?d]
   case a | b | c | d => intros; fun_prop
   rw [mul_assoc, ← mul_add]
   conv => rhs; rw [← mul_neg]
   congr
-  simp
+  simp only [deriv_neg'', neg_mul, one_mul, Polynomial.deriv_aeval]
   conv =>
     lhs; rhs; rhs; ext i; rhs
     rw [← Function.comp_apply (f :=Polynomial.derivative), ← Function.iterate_succ']
-  rw [← Finset.sum_image (f := fun i ↦ (Polynomial.derivative)^[i] f |>.aeval x) (g := Nat.succ) ?inj]
+  rw [← Finset.sum_image
+          (f := fun i ↦ (Polynomial.derivative)^[i] f |>.aeval x) (g := Nat.succ) ?inj]
   case inj => 
     apply Set.injOn_of_injective
     exact Nat.succ_injective
-  simp [show Nat.succ = (· + 1) from by simp, Finset.image_add_right_Icc]
+  simp only [show Nat.succ = (· + 1) from by simp, Finset.image_add_right_Icc, zero_add]
   rw [← Finset.insert_Icc_add_one_left_eq_Icc (by simp)]
   rw [← Finset.insert_Icc_right_eq_Icc_add_one (by simp)]
   simp
@@ -508,7 +526,7 @@ lemma deriv_ex_fx (hp : 0 < p) :
   unfold f
   rw [Polynomial.natDegree_C_mul (by simp [c]; grind [θ_ne_zero])]
   rw [Polynomial.natDegree_X_pow_mul _ (by simp; grind [θ_ne_zero])]
-  simp
+  simp only [Polynomial.natDegree_pow]
   rw [show θ.natDegree = @r h from by simp [r]]
   unfold s
   grind
@@ -524,20 +542,23 @@ lemma equation_20 (hp : 0 < p) (x : ℂ) :
   have : IsScalarTower ℝ ℂ ℂ := inferInstance
   have h_int : _ = G (0 + x) - G 0 :=   -- Why do I need to explicitly specify the instance????
     @intervalIntegral.integral_unitInterval_deriv_eq_sub ℂ ℂ _ _ _ _ _ this _ g _ _ ?hcont ?hderiv
-  rw [← h_int]
-  simp [g]
-  conv => lhs; rhs; arg 1; ext t
-  conv =>
-    rhs; rhs; rhs; arg 1; ext t
-    simp [sub_mul]
-    simp [sub_eq_add_neg, Complex.exp_add]
-    rw [mul_assoc]
-  rw [← mul_assoc, mul_comm (Complex.exp (-x)), Complex.exp_neg]
-  simp [← smul_eq_mul]
-  case hcont => simp; fun_prop
+  · rw [← h_int]
+    simp only [neg_mul, Complex.real_smul, zero_add, intervalIntegral.integral_neg, smul_eq_mul,
+      mul_neg, neg_inj, g]
+    conv => lhs; rhs; arg 1; ext t
+    conv =>
+      rhs; rhs; rhs; arg 1; ext t
+      simp [sub_mul]
+      simp [sub_eq_add_neg, Complex.exp_add]
+      rw [mul_assoc]
+    rw [← mul_assoc, mul_comm (Complex.exp (-x)), Complex.exp_neg]
+    simp [← smul_eq_mul]
+  case hcont =>
+    simp only [Complex.real_smul, zero_add]
+    fun_prop
   case hderiv =>
     have : deriv G = g := by
-      simp [g, G]
+      simp only [neg_mul, G, g]
       apply deriv_ex_fx hp
     rw [← this]
     intro t ht
@@ -557,22 +578,22 @@ lemma Multiset.map_map_powerset {α β : Type*} (s : Multiset α) (f : α → β
   induction s using Multiset.induction_on with
   | empty => simp
   | cons p s ih =>
-    simp [ih]
+    simp only [powerset_cons, map_add, ih, map_map, Function.comp_apply, map_cons, add_right_inj]
     rw [show (fun x => f p ::ₘ map f x) = (cons (f p)) ∘ map f from by ext; simp]
     rw [← Multiset.map_map]
     grind
 
 lemma exp_sum_is_int : -(@βs h |>.map Complex.exp |>.sum) = (@k h : ℂ) := by
-  simp [k]
+  simp only [k]
   rw [neg_eq_iff_add_eq_zero]
   have := Multiset.sum_map_eq_nsmul_single
     (m := (@βs' h).filter (· = 0)) (f := (fun x => Complex.exp x)) 0 ?cond
   case cond => intro i hi hs; simp [hi] at hs
   conv at this => rhs; simp
   rw [← this, ← Multiset.sum_add, ← Multiset.map_add, Multiset.add_comm]
-  simp [βs, Multiset.filter_add_not, βs']
+  simp only [βs', βs, ne_eq, Multiset.filter_add_not, Multiset.map_map, Function.comp_apply]
   have : (fun x => Complex.exp x.sum) = Multiset.prod ∘ (Multiset.map Complex.exp) := by
-    ext x; simp
+    ext x; simp only [Function.comp_apply]
     exact Complex.exp_multiset_sum x
   rw [this, ← Multiset.map_map, Multiset.map_map_powerset, ← Multiset.prod_add_one]
   rw [Multiset.map_map]
@@ -593,10 +614,9 @@ lemma equation_21 : ∀ᶠp in Filter.atTop, @lhs h p = @rhs h p := by
   rw [Filter.eventually_atTop]
   use 1
   intro p hp
-
   unfold lhs rhs
   have := congr_arg (fun f ↦ ((@βs h).map f).sum) (funext (@equation_20 h p hp))
-  simp at this
+  simp only [Multiset.sum_map_sub, neg_mul, Multiset.sum_map_neg] at this
   rename_bvar i → β at this
   rw [← this, sub_eq_add_neg, Multiset.sum_map_mul_right]
   simp [← exp_sum_is_int]
@@ -612,7 +632,10 @@ lemma iterate_derivative_mul_of_root
   rw [mul_comm] at hr
   rw [hr, mul_pow, ← mul_assoc, Polynomial.iterate_derivative_mul, Polynomial.eval_finset_sum]
   apply Finset.sum_eq_zero
-  intro x hx; simp; right; right
+  intro x hx
+  simp only [algebraMap_int_eq, nsmul_eq_mul, Polynomial.eval_mul, Polynomial.eval_natCast,
+    mul_eq_zero, Nat.cast_eq_zero]
+  right; right
   rw [Polynomial.iterate_derivative_X_sub_pow]
   simp; grind
 
@@ -623,7 +646,7 @@ lemma Multiset.ofList_ofFn_eq_self {α : Type*} (s : Multiset α) :
 
 lemma multiset_psum_eq_mvpoly_psum (s : Multiset ℂ) (k : ℕ) :
     (s.map (·^k)).sum = (MvPolynomial.psum (Fin s.toList.length) ℤ k).aeval s.toList.get := by
-  simp [MvPolynomial.psum]
+  simp only [MvPolynomial.psum, map_sum, map_pow, MvPolynomial.aeval_X, List.get_eq_getElem]
   nth_rw 1 [← Multiset.coe_toList s]
   rw [Multiset.map_coe, Multiset.sum_coe]
   nth_rw 1 [← List.ofFn_get s.toList]
@@ -633,7 +656,7 @@ lemma multiset_psum_eq_mvpoly_psum (s : Multiset ℂ) (k : ℕ) :
 lemma Multiset.roots_esymm_eq_coeff_div_leadingCoeff
     {p : ℤ[X]} (hp : p ≠ 0) {k : ℕ} (hk : k ≤ p.natDegree) :
       (p.aroots ℂ).esymm k = p.coeff (p.natDegree - k) * (-1) ^ k / p.leadingCoeff := by
-  simp [Polynomial.aroots]
+  simp only [Polynomial.aroots, algebraMap_int_eq]
   set q := p.map (Int.castRingHom ℂ)
   have h_natDegree : p.natDegree = q.natDegree := by
     symm
@@ -642,10 +665,10 @@ lemma Multiset.roots_esymm_eq_coeff_div_leadingCoeff
     rw [← h_natDegree]
     simp [q]
   have h_leadingCoeff : p.leadingCoeff = q.leadingCoeff := by
-    simp [q]
+    simp only [q]
     rw [Polynomial.leadingCoeff_map_of_leadingCoeff_ne_zero]
-    simp
-    simp [hp]
+    · simp only [eq_intCast]
+    · simp [hp]
   have := Polynomial.coeff_eq_esymm_roots_of_card (p := q) ?hroots (k := q.natDegree - k) ?hk
   case hroots => apply IsAlgClosed.card_roots_eq_natDegree
   case hk => simp [q]
@@ -653,43 +676,43 @@ lemma Multiset.roots_esymm_eq_coeff_div_leadingCoeff
   rw [show q.natDegree - (q.natDegree - k) = k from by grind]
   ring_nf
   have : q.leadingCoeff ≠ 0 := by
-    simp [q]
+    simp only [ne_eq, Polynomial.leadingCoeff_eq_zero, q]
     rw [Polynomial.map_eq_zero_iff]
-    grind
-    simp [Function.Injective]
+    · tauto
+    · simp [Function.Injective]
   rw [mul_comm q.leadingCoeff, mul_inv_cancel_right₀ this]
   rw [pow_mul' (-1) k 2]
   simp
 
 lemma Multiset.esymm_of_gt_card_zero
     {R : Type*} [CommSemiring R] {s : Multiset R} {k : ℕ} (hk : s.card < k) : s.esymm k = 0 := by
-  simp [Multiset.esymm]
+  simp only [esymm]
   rw [Multiset.powersetCard_eq_empty _ (by grind)]
   simp
 
 
 def IsIntDivPow (x : ℂ) (z : ℤ) (k : ℕ) := ∃ m : ℤ, m = x * z ^ k 
-lemma IsIntDivPow_weak {x : ℂ} {z : ℤ} (hz : z ≠ 0) {k l : ℕ} (hx : IsIntDivPow x z k) (hl : k ≤ l) :
-    IsIntDivPow x z l := by
+lemma IsIntDivPow_weak
+    {x : ℂ} {z : ℤ} (hz : z ≠ 0) {k l : ℕ} (hx : IsIntDivPow x z k) (hl : k ≤ l) :
+      IsIntDivPow x z l := by
   obtain ⟨a, ha⟩ := hx
   use a * z ^ (l - k)
-  simp [ha]
+  simp only [Int.cast_mul, ha, Int.cast_pow]
   rw [pow_sub₀ _ _ hl, mul_comm (_ ^ l), ← mul_assoc, mul_inv_cancel_right₀]
-  ring_nf
   all_goals (simp; grind)
 lemma IsIntDivPow_add {x y : ℂ} {z : ℤ} {k : ℕ} (hx : IsIntDivPow x z k) (hy : IsIntDivPow y z k) :
     IsIntDivPow (x+y) z k := by
   obtain ⟨a, ha⟩ := hx
   obtain ⟨b, hb⟩ := hy
   use a + b
-  simp [ha, hb]
+  simp only [Int.cast_add, ha, hb]
   rw [add_mul]
 lemma IsIntDivPow_sub {x y : ℂ} {z : ℤ} {k : ℕ} (hx : IsIntDivPow x z k) (hy : IsIntDivPow y z k) :
     IsIntDivPow (x - y) z k := by
   obtain ⟨a, ha⟩ := hx
   obtain ⟨b, hb⟩ := hy
   use a - b
-  simp [ha, hb]
+  simp only [Int.cast_sub, ha, hb]
   rw [sub_mul]
 lemma IsIntDivPow_mul
     {x y : ℂ} {z : ℤ} {k l m : ℕ}
@@ -705,7 +728,7 @@ lemma IsIntDivPow_sum
       IsIntDivPow (s.sum f) z k := by
   choose a ha using h
   use ∑ i ∈ s.attach, a i.val i.prop
-  simp
+  simp only [Int.cast_sum]
   rw [Finset.sum_mul, ← Finset.sum_attach s]
   apply Finset.sum_congr (by rfl) (by grind)
 lemma IsIntDivPow_esymm {p : ℤ[X]} (hp : p ≠ 0) (k : ℕ) :
@@ -717,9 +740,12 @@ lemma IsIntDivPow_esymm {p : ℤ[X]} (hp : p ≠ 0) (k : ℕ) :
   by_cases! h : k ≤ p.natDegree
   · rw [Multiset.roots_esymm_eq_coeff_div_leadingCoeff (by simp; grind) (by grind)]
     use p.coeff (p.natDegree - k) * (-1) ^ k
-    simp
+    simp only [Int.reduceNeg, Int.cast_mul, Int.cast_pow, Int.cast_neg, Int.cast_one, pow_one]
     rw [div_mul_cancel₀ _ (by simp; grind)]
-  · use 0; simp; left
+  · use 0
+    simp only [Int.cast_zero, pow_one, zero_eq_mul, Int.cast_eq_zero,
+      Polynomial.leadingCoeff_eq_zero]
+    left
     apply Multiset.esymm_of_gt_card_zero
     rw [IsAlgClosed.card_roots_eq_natDegree]
     convert h
@@ -734,7 +760,7 @@ lemma roots_psum_eq_int_div_leadingCoeff_pow {p : ℤ[X]} (hp : p ≠ 0) (k : �
   by_cases! hk : k = 0
   · use (p.aroots ℂ).card; simp [hk]
   rw [MvPolynomial.psum_eq_mul_esymm_sub_sum _ _ _ (by grind)]
-  simp
+  simp only [Set.mem_Ioo, map_sub, map_mul, map_pow, map_neg, map_one, map_natCast, map_sum]
   have : p.leadingCoeff ≠ 0 := by simp; tauto
   apply IsIntDivPow_sub
   · apply IsIntDivPow_mul _ _ (show 0 + k = k from by omega)
@@ -743,7 +769,7 @@ lemma roots_psum_eq_int_div_leadingCoeff_pow {p : ℤ[X]} (hp : p ≠ 0) (k : �
       apply IsIntDivPow_esymm hp
   · apply IsIntDivPow_sum
     intro ⟨i, j⟩ hi
-    simp at hi ⊢
+    simp only [Finset.mem_filter, Finset.mem_antidiagonal] at hi ⊢
     rw [mul_assoc]
     apply IsIntDivPow_mul _ _ (show 0 + k = k from by omega)
     · use (-1)^i; simp
@@ -757,26 +783,26 @@ lemma lhs_prop : ∀ᶠ p in Filter.atTop, p.Prime →
   rw [Filter.eventually_atTop]
   use max (max (@k h) (@c h).natAbs) (@cᵣ h).natAbs + 2
   intro p hpb hpp
-
-  simp [lhs, F]
-  simp [← Polynomial.coeff_zero_eq_aeval_zero']
+  -- 
+  simp only [lhs, F, map_sum]
+  simp only [← Polynomial.coeff_zero_eq_aeval_zero', algebraMap_int_eq, eq_intCast]
   rw [Multiset.sum_map_sum, ← Finset.Ico_add_one_right_eq_Icc]
   rw [← Finset.sum_Ico_consecutive _ (n := p) (by omega) (by omega)]
   rw [← Int.cast_sum]
-
+  --
   have (a b : ℂ) (c : ℤ) (ha : a = 0) (hb : ∃ m : ℤ, b = m * p.factorial)
       (hc : ∃ m : ℤ, c = m * (p-1).factorial ∧ ¬ (p : ℤ) ∣ m) :
       ∃ m : ℤ, a + b + @k h * c = m * (p-1).factorial ∧ ¬ (p : ℤ) ∣ m := by
     obtain ⟨b', hb'⟩ := hb
     obtain ⟨c', hc', hc''⟩ := hc
-    simp [ha, hb', hc']
+    simp only [ha, hb', zero_add, hc', Int.cast_mul, Int.cast_natCast]
     rw [← Nat.mul_factorial_pred (by omega)]
     use b' * p + @k h * c'
     constructor
     · simp
       ring_nf
     · rw [Int.dvd_mul_self_add]
-      simp [← Int.natAbs_dvd_natAbs, Int.natAbs_mul]
+      simp only [← Int.natAbs_dvd_natAbs, Int.natAbs_natCast, Int.natAbs_mul]
       apply Nat.Prime.not_dvd_mul hpp
       · rw [← Nat.Prime.coprime_iff_not_dvd hpp]
         apply Nat.coprime_of_lt_prime (by grind [k_pos]) (by omega) hpp
@@ -784,33 +810,35 @@ lemma lhs_prop : ∀ᶠ p in Filter.atTop, p.Prime →
         tauto
   apply this
   all_goals clear this
-
+  --
   · unfold f
     simp only [Polynomial.iterate_derivative_C_mul]
     convert Finset.sum_const_zero with i hi; simp at hi
     convert Multiset.sum_map_zero with β hβ
-    simp; right
+    simp only [eq_intCast, map_mul, map_pow, map_intCast, mul_eq_zero, pow_eq_zero_iff',
+      Int.cast_eq_zero, ne_eq]
+    right
     rw [iterate_derivative_mul_of_root (hm := by omega)]
     rw [← θ_spec] at hβ
     rw [Polynomial.mem_aroots] at hβ
     tauto
-
+  --
   · unfold f
     simp only [Polynomial.iterate_derivative_C_mul]
     rw [← Finset.sum_attach]
-
+    --
     have (p : ℤ[X]) (hp : p ≠ 0) {k l : ℕ} (hk : l ≤ k) :
         IsIntDivPow (p.aroots ℂ |>.map (·^l) |>.sum) p.leadingCoeff k := by
       apply IsIntDivPow_weak (by simp; tauto) _ hk
       apply roots_psum_eq_int_div_leadingCoeff_pow hp
     choose g hg using this
-
+    --
     have (n k : ℕ) (hk : p ≤ k) : p.factorial ∣ n.descFactorial k := by
       trans k.factorial
-      exact Nat.factorial_dvd_factorial hk
-      exact Nat.factorial_dvd_descFactorial n k
+      · exact Nat.factorial_dvd_factorial hk
+      · exact Nat.factorial_dvd_descFactorial n k
     choose g2 hg2 using this
-
+    --
     conv =>
       enter [1, m, 1, 2, i]
       conv =>
@@ -829,39 +857,42 @@ lemma lhs_prop : ∀ᶠ p in Filter.atTop, p.Prime →
         rfl
         tactic =>
           guard_target = j.val - i.val ≤ s
-          obtain ⟨i, hi⟩ := i; simp at hi
-          obtain ⟨j, hj⟩ := j; simp at hj
+          obtain ⟨i, hi⟩ := i; simp only [Finset.mem_Ico, Order.lt_add_one_iff] at hi
+          obtain ⟨j, hj⟩ := j; simp only [Finset.mem_range, Order.lt_add_one_iff] at hj
           rw [Polynomial.natDegree_X_pow_mul _ (by simp; grind [θ_ne_zero])] at hj
-          simp at hj
+          simp only [Polynomial.natDegree_pow] at hj
           rw [show θ.natDegree = @r h from by simp [r]] at hj
-          simp
+          simp only [tsub_le_iff_right]
           trans p * @r h + (p - 1); omega
           trans @s h p + p; unfold s; grind
           omega
-    simp
+    simp only [Nat.cast_mul]
     have {ι κ : Type 0} (s : Finset ι) (t : Finset κ) (a b c : ι → κ → ℤ) :
-        ∃ m : ℤ, ∑ i ∈ s, ∑ j ∈ t, (a i j : ℂ) * (p.factorial * b i j * c i j) = m * p.factorial := by
+        ∃ m : ℤ, ∑ i ∈ s, ∑ j ∈ t, (a i j : ℂ) * (p.factorial * b i j * c i j) = m * p.factorial
+          := by
       use ∑ i ∈ s, ∑ j ∈ t, a i j * b i j * c i j
-      simp
-      simp [Finset.sum_mul]
+      simp only [Int.cast_sum, Int.cast_mul]
+      simp only [Finset.sum_mul]
       apply Finset.sum_congr (by rfl); intros
       apply Finset.sum_congr (by rfl); intros
       ring_nf
     apply this
-
+  --
   · unfold f
     simp only [Polynomial.iterate_derivative_C_mul, Polynomial.coeff_C_mul]
-    simp [Polynomial.coeff_iterate_derivative, Nat.descFactorial_self]
-    simp [Polynomial.coeff_X_pow_mul', ← Finset.sum_filter]
+    simp only [Nat.Ico_zero_eq_range, Polynomial.coeff_iterate_derivative, zero_add,
+      Nat.descFactorial_self, Int.nsmul_eq_mul]
+    simp only [Polynomial.coeff_X_pow_mul', tsub_le_iff_right, mul_ite, mul_zero,
+      ← Finset.sum_filter]
     rw [Finset.sum_congr
       (show _ = (Finset.range (@s h p + p + 1)).filter (fun i => p - 1 ≤ i) from by ext; simp)
       (by intros; rfl)]
     rw [← Nat.Ico_zero_eq_range, Finset.Ico_filter_le]
-    simp
+    simp only [zero_le, sup_of_le_right]
     rw [Finset.sum_eq_sum_Ico_succ_bot (by omega), show p - 1 + 1 = p by omega]
-    simp
+    simp only [tsub_self]
     rw [← Polynomial.constantCoeff_apply, RingHom.map_pow]
-    simp
+    simp only [Polynomial.constantCoeff_apply]
     rw [show (@θ h).coeff 0 = @cᵣ h by simp [cᵣ], mul_comm _ (_ ^ _), ← mul_assoc]
     rw [← Finset.sum_attach]
     conv =>
@@ -884,10 +915,10 @@ lemma lhs_prop : ∀ᶠ p in Filter.atTop, p.Prime →
     have hp : Prime (p : ℤ) := by exact Nat.prime_iff_prime_int.mp hpp
     apply Prime.not_dvd_mul hp
     · rw [Prime.dvd_pow_iff_dvd hp]
-      · simp [← Int.natAbs_dvd_natAbs]
+      · simp only [← Int.natAbs_dvd_natAbs, Int.natAbs_natCast]
         rw [← Nat.Prime.coprime_iff_not_dvd hpp]
         apply Nat.coprime_of_lt_prime ?_ (by omega) hpp
-        simp [c]
+        simp only [c, ne_eq, Int.natAbs_eq_zero, Polynomial.leadingCoeff_eq_zero]
         apply θ_ne_zero
       · unfold s
         apply Nat.sub_ne_zero_of_lt
@@ -895,10 +926,10 @@ lemma lhs_prop : ∀ᶠ p in Filter.atTop, p.Prime →
         rw [Nat.one_lt_mul_iff]
         omega
     · rw [Prime.dvd_pow_iff_dvd hp]
-      · simp [← Int.natAbs_dvd_natAbs]
+      · simp only [← Int.natAbs_dvd_natAbs, Int.natAbs_natCast]
         rw [← Nat.Prime.coprime_iff_not_dvd hpp]
         apply Nat.coprime_of_lt_prime ?_ (by omega) hpp
-        simp
+        simp only [ne_eq, Int.natAbs_eq_zero]
         apply cᵣ_ne_zero
       · omega
 
@@ -906,8 +937,8 @@ lemma lhs_prop_abs (z : ℂ) (p : ℕ) (h : ∃ m : ℤ, z = m * (p - 1).factori
     1 ≤ ‖z / (p-1).factorial‖ := by
   obtain ⟨m, hz, hm⟩ := h
   rw [hz]
-  simp
-  rw [mul_div_cancel_right₀ _ (by simp; apply Nat.factorial_ne_zero)]
+  simp only [Complex.norm_div, Complex.norm_mul, Complex.norm_intCast, RCLike.norm_natCast]
+  rw [mul_div_cancel_right₀ _ (by simp only [ne_eq, Nat.cast_eq_zero]; apply Nat.factorial_ne_zero)]
   suffices 1 ≤ |m| from by norm_cast
   apply Int.one_le_abs
   contrapose hm
@@ -923,12 +954,13 @@ lemma rhs_convergence_lemma (a b : ℝ) :
   · apply Filter.tendsto_sub_atTop_nat
 
 lemma rhs_prop : Filter.Tendsto (fun p ↦ @rhs h p / (p-1).factorial) Filter.atTop (nhds 0) := by
-  simp [rhs, f]
+  simp only [rhs, f, eq_intCast, Int.cast_pow, map_mul, map_pow, map_intCast, Polynomial.aeval_X]
   apply squeeze_zero_norm
   · intro p
     rewrite [neg_div, norm_neg, ← Multiset.sum_map_div]
     apply norm_multiset_sum_le
-  simp
+  simp only [Multiset.map_map, Function.comp_apply, Complex.norm_div, Complex.norm_mul,
+    RCLike.norm_natCast]
   conv in nhds _ => rw [show (0 : ℝ) = (@βs h |>.map (fun _ => 0) |>.sum) from by simp]
   apply tendsto_multiset_sum
   intro β hβ
@@ -936,7 +968,7 @@ lemma rhs_prop : Filter.Tendsto (fun p ↦ @rhs h p / (p-1).factorial) Filter.at
   conv in nhds _ => rw [show (0 : ℝ) = ‖β‖ * 0 from by simp]
   apply Filter.Tendsto.const_mul
   apply squeeze_zero_norm'
-  · simp
+  · simp only [norm_div, norm_norm, RCLike.norm_natCast, Filter.eventually_atTop, ge_iff_le]
     use 1
     intro p hp
 
@@ -947,7 +979,7 @@ lemma rhs_prop : Filter.Tendsto (fun p ↦ @rhs h p / (p-1).factorial) Filter.at
       enter [1, 1, 1, 1, t]
       equals ((1-t)*β).exp * @c h ^ (r-1) * (@θ h).aeval (t*β)
           * (@c h^r * t*β * (@θ h).aeval (t*β))^(p-1) =>
-        simp [s, ← hr]
+        simp only [s, ← hr]
         have : r * p - 1 = r - 1 + r * (p - 1) := by
           have : 1 ≤ r * p := Right.one_le_mul hr₁ hp
           zify [hr₁, hp, this]
@@ -958,7 +990,8 @@ lemma rhs_prop : Filter.Tendsto (fun p ↦ @rhs h p / (p-1).factorial) Filter.at
     rewrite [div_le_div_iff_of_pos_right (by positivity)]
     apply le_trans
     · apply intervalIntegral.norm_integral_le_integral_norm (by simp)
-    · simp
+    · simp only [Complex.norm_mul, norm_pow, Complex.norm_intCast, Complex.norm_real,
+        Real.norm_eq_abs]
       apply intervalIntegral.integral_mono_on (by simp)
       case' hf | hg => apply Continuous.intervalIntegrable
       case' h =>
@@ -984,17 +1017,22 @@ lemma rhs_prop : Filter.Tendsto (fun p ↦ @rhs h p / (p-1).factorial) Filter.at
   apply rhs_convergence_lemma
 
 theorem pi_transcendental : Transcendental ℤ Real.pi := by
-  simp [Transcendental]
+  simp only [Transcendental]
   by_contra that
   apply IsAlgebraic.algebraMap (A := ℂ) at that
-  simp at that
-
+  simp only [Complex.coe_algebraMap] at that
+  --
   have: IsAlgebraic ℤ I := by
-    use Polynomial.X^2 + 1; simp
+    use Polynomial.X^2 + 1
+    simp only [ne_eq, map_add, map_pow, Polynomial.aeval_X, Complex.I_sq, map_one, neg_add_cancel,
+      and_true]
     rw [Polynomial.ext_iff]
-    simp; use 0; simp
+    simp only [Polynomial.coeff_add, Polynomial.coeff_X_pow, Polynomial.coeff_zero, not_forall]
+    use 0
+    simp only [OfNat.zero_ne_ofNat, ↓reduceIte, Polynomial.coeff_one_zero, zero_add, one_ne_zero,
+      not_false_eq_true]
   have h := IsAlgebraic.mul that this
-
+  --
   have rhs_prop := Metric.tendsto_nhds.mp (@rhs_prop h) 1 (by simp)
   have infinite_primes := Filter.frequently_atTop.mpr Nat.exists_infinite_primes
   have := @equation_21 h |>.and (@lhs_prop h) |>.and rhs_prop
