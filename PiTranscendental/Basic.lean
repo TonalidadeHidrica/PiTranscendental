@@ -62,8 +62,9 @@ theorem Multiset.sum_coe' {M : Type*} [AddCommMonoid M] :
     Multiset.sum (M :=M) ∘ Multiset.ofList = List.sum (α :=M) := by
   ext; simp
 
-theorem MvPolynomial.X_sum_injective {R σ : Type*} [CommSemiring R] [Nontrivial R] [DecidableEq σ] :
+theorem MvPolynomial.X_sum_injective {R σ : Type*} [CommSemiring R] [Nontrivial R] :
     Function.Injective (fun (x : Finset σ) => ∑ a ∈ x, X (R :=R) a) := by
+  classical
   unfold Function.Injective
   intro s t h
   rw [Finset.ext_iff]
@@ -146,10 +147,11 @@ lemma symmetric_composition {σ τ R : Type*} [CommSemiring R]
   rw [← MvPolynomial.aeval_rename, hq]
 
 lemma list_equiv_perm_if_bij
-    {α : Type*} [DecidableEq α] {l : List α} (hl : l.Nodup)
+    {α : Type*} {l : List α} (hl : l.Nodup)
     {f : α → α} (hf : Set.BijOn f {x | x ∈ l} {x | x ∈ l})
     {len : ℕ} (hlen : len = l.length) :
       ∃ perm : Equiv.Perm (Fin len), ∀ i : Fin len, (l.map f)[i]'(by grind) = l[perm i] := by
+  classical
   subst hlen
   use hl.getEquiv |>.trans (Set.BijOn.equiv f hf) |>.trans hl.getEquiv.symm
   intro i
@@ -157,9 +159,10 @@ lemma list_equiv_perm_if_bij
   rfl
 
 lemma list_subsum_polys_is_invariant
-    {R : Type*} [CommSemiring R] [DecidableEq R] [Nontrivial R] (n m : ℕ)
+    {R : Type*} [CommSemiring R] [Nontrivial R] (n m : ℕ)
     {len : ℕ} (h_len : len = (list_subsum_polys R n m).length) :
       IsInvariantFamily (fun (i : Fin len) => (list_subsum_polys R n m)[i]) := by
+  classical
   dsimp [IsInvariantFamily]
   intro perm_τ
   conv in (MvPolynomial.rename _) _ =>
@@ -954,7 +957,7 @@ lemma rhs_convergence_lemma (a b : ℝ) :
   · apply Filter.tendsto_sub_atTop_nat
 
 lemma rhs_prop : Filter.Tendsto (fun p ↦ @rhs h p / (p-1).factorial) Filter.atTop (nhds 0) := by
-  simp only [rhs, f, eq_intCast, Int.cast_pow, map_mul, map_pow, map_intCast, Polynomial.aeval_X]
+  simp only [rhs, f, eq_intCast, map_mul, map_pow, map_intCast, Polynomial.aeval_X]
   apply squeeze_zero_norm
   · intro p
     rewrite [neg_div, norm_neg, ← Multiset.sum_map_div]
@@ -971,7 +974,7 @@ lemma rhs_prop : Filter.Tendsto (fun p ↦ @rhs h p / (p-1).factorial) Filter.at
   · simp only [norm_div, norm_norm, RCLike.norm_natCast, Filter.eventually_atTop, ge_iff_le]
     use 1
     intro p hp
-
+    --
     set r := @r h with hr
     have hr₁ : 1 ≤ r := by grind [r_ge_one]
     apply le_trans  -- Prevent `conv` from closing the goal
@@ -986,33 +989,34 @@ lemma rhs_prop : Filter.Tendsto (fun p ↦ @rhs h p / (p-1).factorial) Filter.at
           ring_nf
         rw [this, pow_add, ← mul_pow_sub_one (show p ≠ 0 from by omega)]
         ring_nf
-
+    --
     rewrite [div_le_div_iff_of_pos_right (by positivity)]
-    apply le_trans
-    · apply intervalIntegral.norm_integral_le_integral_norm (by simp)
-    · simp only [Complex.norm_mul, norm_pow, Complex.norm_intCast, Complex.norm_real,
-        Real.norm_eq_abs]
-      apply intervalIntegral.integral_mono_on (by simp)
-      case' hf | hg => apply Continuous.intervalIntegrable
-      case' h =>
-        intro t ht
-        have {a b c d : ℝ} (ha : 0 ≤ a) (hb : 0 ≤ b) (hc : a ≤ c) (hd : b ≤ d) : a * b ≤ c * d := by
-          trans c * b
-          · exact mul_le_mul_of_nonneg_right hc hb
-          · apply mul_le_mul_of_nonneg_left hd
-            apply ha.trans hc
-        apply this (by positivity) (by positivity)
-        case' hd => apply pow_le_pow_left₀ (by positivity)
+    · apply le_trans
+      · apply intervalIntegral.norm_integral_le_integral_norm (by simp)
+      · simp only [Complex.norm_mul, norm_pow, Complex.norm_intCast, Complex.norm_real,
+          Real.norm_eq_abs]
+        apply intervalIntegral.integral_mono_on (by simp)
+        case' hf | hg => apply Continuous.intervalIntegrable
+        case' h =>
+          intro t ht
+          have {a b c d : ℝ} (ha : 0 ≤ a) (hb : 0 ≤ b) (hc : a ≤ c) (hd : b ≤ d) :
+              a * b ≤ c * d := by
+            trans c * b
+            · exact mul_le_mul_of_nonneg_right hc hb
+            · apply mul_le_mul_of_nonneg_left hd
+              apply ha.trans hc
+          apply this (by positivity) (by positivity)
+          case' hd => apply pow_le_pow_left₀ (by positivity)
+          all_goals (
+            apply ContinuousOn.le_sSup_image_Icc (hc := ht)
+            apply Continuous.continuousOn
+          )
+        all_goals apply_rules [Continuous.mul, Continuous.pow] <;> try continuity
         all_goals (
-          apply ContinuousOn.le_sSup_image_Icc (hc := ht)
-          apply Continuous.continuousOn
+          apply Continuous.comp (by continuity)
+          apply Continuous.comp (g := fun u ↦ (Polynomial.aeval u) θ)
+          all_goals continuity
         )
-      all_goals apply_rules [Continuous.mul, Continuous.pow] <;> try continuity
-      all_goals (
-        apply Continuous.comp (by continuity)
-        apply Continuous.comp (g := fun u ↦ (Polynomial.aeval u) θ)
-        all_goals continuity
-      )
   conv => enter [1, p]; simp
   apply rhs_convergence_lemma
 
