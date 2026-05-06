@@ -1,13 +1,5 @@
 # PiTranscendental
 
-## GitHub configuration
+This repository contains a proof that π is transcendal, formalized with Lean 4.
 
-To set up your new GitHub repository, follow these steps:
-
-* Under your repository name, click **Settings**.
-* In the **Actions** section of the sidebar, click "General".
-* Check the box **Allow GitHub Actions to create and approve pull requests**.
-* Click the **Pages** section of the settings sidebar.
-* In the **Source** dropdown menu, select "GitHub Actions".
-
-After following the steps above, you can remove this section from the README file.
+The proof is based on "[An elementary, self-contained proof that π is transcendental](https://www.davidhbailey.com/dhbpapers/dhb-pi-trans.pdf)" by David H. Bailey (2025).
